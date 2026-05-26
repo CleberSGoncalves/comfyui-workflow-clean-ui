@@ -1,28 +1,77 @@
 # clean base image containing only comfyui, comfy-cli and comfyui-manager
 FROM runpod/worker-comfyui:5.8.4-base
 
-# build-time tokens for gated downloads — never baked into final image.
-# pass via: docker build --build-arg HF_TOKEN=$HF_TOKEN ...
 ARG HF_TOKEN=""
 
-# install custom nodes into comfyui
-RUN git clone https://github.com/kijai/ComfyUI-KJNodes /comfyui/custom_nodes/ComfyUI-KJNodes && cd /comfyui/custom_nodes/ComfyUI-KJNodes && (git checkout 468fcc86f0b29e79a8510e8239eb15714d6747a6 2>/dev/null || (git fetch origin 468fcc86f0b29e79a8510e8239eb15714d6747a6 --depth=1 && git checkout 468fcc86f0b29e79a8510e8239eb15714d6747a6) || echo "WARN: commit 468fcc86f0b29e79a8510e8239eb15714d6747a6 unreachable in https://github.com/kijai/ComfyUI-KJNodes, falling back to default branch HEAD")
-RUN git clone https://github.com/Fannovel16/comfyui_controlnet_aux /comfyui/custom_nodes/comfyui_controlnet_aux && cd /comfyui/custom_nodes/comfyui_controlnet_aux && (git checkout 1d7cdce8cb771fbc39a432a6338168c12a338ef4 2>/dev/null || (git fetch origin 1d7cdce8cb771fbc39a432a6338168c12a338ef4 --depth=1 && git checkout 1d7cdce8cb771fbc39a432a6338168c12a338ef4) || echo "WARN: commit 1d7cdce8cb771fbc39a432a6338168c12a338ef4 unreachable in https://github.com/Fannovel16/comfyui_controlnet_aux, falling back to default branch HEAD")
-RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite /comfyui/custom_nodes/ComfyUI-VideoHelperSuite && cd /comfyui/custom_nodes/ComfyUI-VideoHelperSuite && (git checkout 8e4d79471bf1952154768e8435a9300077b534fa 2>/dev/null || (git fetch origin 8e4d79471bf1952154768e8435a9300077b534fa --depth=1 && git checkout 8e4d79471bf1952154768e8435a9300077b534fa) || echo "WARN: commit 8e4d79471bf1952154768e8435a9300077b534fa unreachable in https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite, falling back to default branch HEAD")
-RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper /comfyui/custom_nodes/ComfyUI-WanVideoWrapper && cd /comfyui/custom_nodes/ComfyUI-WanVideoWrapper && (git checkout 2bdd81a10b03c14443c79bdf3b783b1feb3d1fa3 2>/dev/null || (git fetch origin 2bdd81a10b03c14443c79bdf3b783b1feb3d1fa3 --depth=1 && git checkout 2bdd81a10b03c14443c79bdf3b783b1feb3d1fa3) || echo "WARN: commit 2bdd81a10b03c14443c79bdf3b783b1feb3d1fa3 unreachable in https://github.com/kijai/ComfyUI-WanVideoWrapper, falling back to default branch HEAD")
+# install custom nodes + dependencies
+RUN git clone https://github.com/kijai/ComfyUI-KJNodes /comfyui/custom_nodes/ComfyUI-KJNodes && \
+    cd /comfyui/custom_nodes/ComfyUI-KJNodes && \
+    pip install -r requirements.txt || true
 
-# download models into comfyui
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/hr16/yolox-onnx/resolve/main/yolox_l.torchscript.pt' --relative-path models/annotators --filename 'yolox_l.torchscript.pt' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/hr16/DWPose-TorchScript-BatchSize5/resolve/main/dw-ll_ucoco_384_bs5.torchscript.pt' --relative-path models/annotators --filename 'dw-ll_ucoco_384_bs5.torchscript.pt' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors' --relative-path models/clip_vision --filename 'clip_vision_h.safetensors' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors' --relative-path models/vae --filename 'wanvideo/Wan2_1_VAE_bf16.safetensors' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors' --relative-path models/Unknown --filename 'umt5-xxl-enc-bf16.safetensors' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_fp8_e4m3fn.safetensors' --relative-path models/diffusion_models --filename 'WanVideo/2_2/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/LoRAs/Wan22_relight/WanAnimate_relight_lora_fp16.safetensors' --relative-path models/Unknown --filename 'WanVideo/WanAnimate_relight_lora_fp16.safetensors' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
-RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do HF_TOKEN=$HF_TOKEN comfy model download --url 'https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors' --relative-path models/Unknown --filename 'WanVideo/Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors' && break; if [ $i -eq 5 ]; then echo "model-download failed after 5 attempts" >&2; exit 1; fi; SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && echo "model-download attempt $i failed; retrying in $SLEEP seconds" >&2; sleep $SLEEP; done
+RUN git clone https://github.com/Fannovel16/comfyui_controlnet_aux /comfyui/custom_nodes/comfyui_controlnet_aux && \
+    cd /comfyui/custom_nodes/comfyui_controlnet_aux && \
+    pip install -r requirements.txt || true
 
-# copy all input data (like images or videos) into comfyui (uncomment and adjust if needed)
-# COPY input/ /comfyui/input/
+RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite /comfyui/custom_nodes/ComfyUI-VideoHelperSuite && \
+    cd /comfyui/custom_nodes/ComfyUI-VideoHelperSuite && \
+    pip install -r requirements.txt || true
 
-# user-provided inputs override the auto-generated placeholders above.
-RUN wget --progress=dot:giga -O '/comfyui/input/refer.jpeg' "https://cool-anteater-319.convex.cloud/api/storage/2ea10bca-b67e-4bda-8107-e22892552d34"
+RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper /comfyui/custom_nodes/ComfyUI-WanVideoWrapper && \
+    cd /comfyui/custom_nodes/ComfyUI-WanVideoWrapper && \
+    pip install -r requirements.txt || true
+
+# CRITICO: instala dependencias Python do WanVideoWrapper (sem isso os nodes nao carregam)
+RUN pip install "diffusers>=0.33.0" accelerate einops "peft>=0.17" ftfy
+
+# DWPose annotators
+RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
+    HF_TOKEN=$HF_TOKEN comfy model download \
+    --url 'https://huggingface.co/hr16/yolox-onnx/resolve/main/yolox_l.torchscript.pt' \
+    --relative-path models/annotators \
+    --filename 'yolox_l.torchscript.pt' && break; \
+    if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
+    SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
+
+RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
+    HF_TOKEN=$HF_TOKEN comfy model download \
+    --url 'https://huggingface.co/hr16/DWPose-TorchScript-BatchSize5/resolve/main/dw-ll_ucoco_384_bs5.torchscript.pt' \
+    --relative-path models/annotators \
+    --filename 'dw-ll_ucoco_384_bs5.torchscript.pt' && break; \
+    if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
+    SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
+
+# CLIP Vision
+RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
+    HF_TOKEN=$HF_TOKEN comfy model download \
+    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors' \
+    --relative-path models/clip_vision \
+    --filename 'clip_vision_h.safetensors' && break; \
+    if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
+    SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
+
+# VAE
+RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
+    HF_TOKEN=$HF_TOKEN comfy model download \
+    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors' \
+    --relative-path models/vae \
+    --filename 'wan_2.1_vae.safetensors' && break; \
+    if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
+    SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
+
+# Text Encoder UMT5-XXL
+RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
+    HF_TOKEN=$HF_TOKEN comfy model download \
+    --url 'https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors' \
+    --relative-path models/text_encoders \
+    --filename 'umt5-xxl-enc-bf16.safetensors' && break; \
+    if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
+    SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
+
+# Modelo principal: Wan2.1 I2V 1.3B fp8 (Image-to-Video)
+RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
+    HF_TOKEN=$HF_TOKEN comfy model download \
+    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_1.3B_fp8_e4m3fn.safetensors' \
+    --relative-path models/diffusion_models \
+    --filename 'wan2.1_i2v_480p_1.3B_fp8_e4m3fn.safetensors' && break; \
+    if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
+    SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
