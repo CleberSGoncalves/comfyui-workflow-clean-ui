@@ -76,10 +76,11 @@ RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
     SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
 
 # Modelo principal correto: Wan2.1 I2V 14B fp8 (Image-to-Video em FP8 para caber nos 24GB de VRAM)
+# NOTA: O nome correto no repositório do Comfy-Org tem "_480p_" no meio!
 RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
     HF_TOKEN=$HF_TOKEN comfy model download \
-    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_14B_fp8_e4m3fn.safetensors' \
+    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_fp8_e4m3fn.safetensors' \
     --relative-path models/diffusion_models \
-    --filename 'wan2.1_i2v_14B_fp8_e4m3fn.safetensors' && break; \
+    --filename 'wan2.1_i2v_480p_14B_fp8_e4m3fn.safetensors' && break; \
     if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
     SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
