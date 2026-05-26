@@ -23,7 +23,10 @@ RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper /comfyui/custom_n
 # CRITICO: instala dependencias Python do WanVideoWrapper (sem isso os nodes nao carregam)
 RUN pip install "diffusers>=0.33.0" accelerate einops "peft>=0.17" ftfy
 
-# DWPose annotators
+# PERFORMANCE: Instala o SageAttention (acelera a inferência do WanVideo em até 2x!)
+RUN pip install sageattention==2.2.0 --no-build-isolation || true
+
+# DWPose annotators (baixa os modelos de pose)
 RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
     HF_TOKEN=$HF_TOKEN comfy model download \
     --url 'https://huggingface.co/hr16/yolox-onnx/resolve/main/yolox_l.torchscript.pt' \
@@ -39,6 +42,11 @@ RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
     --filename 'dw-ll_ucoco_384_bs5.torchscript.pt' && break; \
     if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
     SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
+
+# SEGURANÇA: Cria symlinks para o DWPose (evita que o node cometa o erro de fazer download fantasma na hora de rodar o vídeo)
+RUN mkdir -p /comfyui/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5/ && \
+    ln -s /comfyui/models/annotators/dw-ll_ucoco_384_bs5.torchscript.pt /comfyui/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5/dw-ll_ucoco_384_bs5.torchscript.pt || true && \
+    ln -s /comfyui/models/annotators/yolox_l.torchscript.pt /comfyui/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5/yolox_l.torchscript.pt || true
 
 # CLIP Vision
 RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
@@ -67,11 +75,11 @@ RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
     if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
     SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
 
-# Modelo principal: Wan2.1 I2V 1.3B fp8 (Image-to-Video)
+# Modelo principal correto: Wan2.1 I2V 14B fp8 (Image-to-Video em FP8 para caber nos 24GB de VRAM)
 RUN BACKOFFS="10 20 30 60 90" && for i in 1 2 3 4 5; do \
     HF_TOKEN=$HF_TOKEN comfy model download \
-    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_1.3B_fp8_e4m3fn.safetensors' \
+    --url 'https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_14B_fp8_e4m3fn.safetensors' \
     --relative-path models/diffusion_models \
-    --filename 'wan2.1_i2v_480p_1.3B_fp8_e4m3fn.safetensors' && break; \
+    --filename 'wan2.1_i2v_14B_fp8_e4m3fn.safetensors' && break; \
     if [ $i -eq 5 ]; then echo "failed" >&2; exit 1; fi; \
     SLEEP=$(echo $BACKOFFS | cut -d ' ' -f $i) && sleep $SLEEP; done
