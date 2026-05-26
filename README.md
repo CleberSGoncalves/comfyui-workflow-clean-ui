@@ -1,6 +1,6 @@
 # workflow-clean-ui
 ComfyUI workflow Dockerized via [comfyui-wizard](https://comfy.getrunpod.io).
-Submission: https://comfy.getrunpod.io/dashboard/submissions/kd7e98y6nnqzpgmqy5y4y54gk187fsd7
+Submission: https://comfy.getrunpod.io/dashboard/submissions/kd7ahbex8pkpdt25vz8vkmvgc987evs2
 ## Build it yourself
 ```bash
 docker build -t my-comfy-workflow .
